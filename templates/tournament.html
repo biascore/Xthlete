@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xthlete</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        /* custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        /* standard rest buffer */
+        .rest-buffer {
+            background: repeating-linear-gradient(
+                45deg,
+                #fcd34d,
+                #fcd34d 10px,
+                #fffbeb 10px,
+                #fffbeb 20px
+            );
+            opacity: 0.6;
+            border: 1px dashed #d97706;
+        }
+
+        /* active rest buffer (flashing) */
+        .rest-buffer-active {
+            background: repeating-linear-gradient(
+                45deg,
+                #34d399,
+                #34d399 10px,
+                #ecfdf5 10px,
+                #ecfdf5 20px
+            ) !important;
+            border: 2px solid #059669 !important;
+            animation: pulse-glow 1.5s ease-in-out infinite;
+            z-index: 20;
+            opacity: 1 !important;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.5); opacity: 0.8; }
+            50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.9); opacity: 1; }
+        }
+
+        /* current time bar */
+        .current-time-bar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #ef4444;
+            z-index: 50; /* must be higher than matches */
+            pointer-events: none;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+        
+        .current-time-tag {
+            background-color: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white border-b border-gray-200 fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-trophy text-blue-600 text-2xl mr-3"></i>
+                    <span class="text-xl font-bold text-gray-900">Xthlete</span>
+                </div>
+                <div class="flex space-x-4 items-center">
+                    <button id="nav-admin" data-section="admin" onclick="showSection('admin')" class="nav-btn px-4 py-2 text-sm font-medium text-blue-600 font-semibold hover:text-blue-600 transition">
+                        <i class="fas fa-home mr-2"></i>Admin
+                    </button>
+                    <button id="nav-add-player" data-section="add-player" onclick="showSection('add-player')" class="nav-btn px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition">
+                        <i class="fas fa-user-plus mr-2"></i>Add Player
+                    </button>
+                    <button id="nav-fixtures" data-section="fixtures" onclick="showSection('fixtures')" class="nav-btn px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition">
+                        <i class="fas fa-sitemap mr-2"></i>Fixtures
+                    </button>
+                    <button id="nav-scheduler" data-section="scheduler" onclick="showSection('scheduler')" class="nav-btn px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition">
+                        <i class="fas fa-calendar-alt mr-2"></i>Scheduler
+                    </button>
+                    <button id="nav-umpire" data-section="umpire" onclick="showSection('umpire')" class="nav-btn px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition">
+                        <i class="fas fa-shield-alt mr-2"></i>Umpire
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section id="admin" class="section-content pt-20 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Players</p>
+                            <p class="text-3xl font-bold text-gray-900 mt-1" id="stat-total-players">-</p>
+                        </div>
+                        <div class="bg-blue-100 rounded-full p-3">
+                            <i class="fas fa-users text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Matches Scheduled</p>
+                            <p class="text-3xl font-bold text-gray-900 mt-1" id="stat-total-matches">-</p>
+                        </div>
+                        <div class="bg-green-100 rounded-full p-3">
+                            <i class="fas fa-calendar-check text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Courts Active</p>
+                            <p class="text-3xl font-bold text-gray-900 mt-1" id="stat-active-courts">-</p>
+                        </div>
+                        <div class="bg-purple-100 rounded-full p-3">
+                            <i class="fas fa-th text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Player Registration</h2>
+                    </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Club</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="players-table-body" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                    <div class="loading mx-auto"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    <div class="text-sm text-gray-700">
+                        Showing <span id="player-range-start">0</span> to <span id="player-range-end">0</span> of <span id="player-total">0</span> players
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="loadPlayersPage(currentPage - 1)" id="prev-page-btn" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span class="px-3 py-1 text-sm text-gray-700">
+                            Page <span id="current-page-num">1</span> of <span id="total-pages-num">1</span>
+                        </span>
+                        <button onclick="loadPlayersPage(currentPage + 1)" id="next-page-btn" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="add-player" class="section-content hidden pt-20 pb-12">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Add New Player</h2>
+                    <p class="text-sm text-gray-600 mt-1">Register a new player for the tournament</p>
+                </div>
+
+                <form id="add-player-form" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Player Name*</label>
+                        <input 
+                            type="text" 
+                            id="player-name"
+                            required
+                            placeholder="Enter player full name"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Club*</label>
+                        <select 
+                            id="player-club"
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">Select Club</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Event Category*</label>
+                        <select 
+                            id="player-category"
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">Select Category</option>
+                            <option value="Men's Singles">Men's Singles</option>
+                            <option value="Women's Singles">Women's Singles</option>
+                            <option value="Men's Doubles">Men's Doubles</option>
+                            <option value="Women's Doubles">Women's Doubles</option>
+                            <option value="Mixed Doubles">Mixed Doubles</option>
+                        </select>
+                    </div>
+
+                    <div id="form-message" class="hidden p-4 rounded-lg"></div>
+
+                    <div class="flex space-x-4">
+                        <button 
+                            type="submit"
+                            id="submit-player-btn"
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
+                        >
+                            <i class="fas fa-user-plus mr-2"></i>Add Player
+                        </button>
+                        <button 
+                            type="button"
+                            onclick="showSection('admin')"
+                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-lg transition"
+                        >
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section id="fixtures" class="section-content hidden pt-20 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-trophy text-yellow-600 mr-2"></i>Tournament Fixtures
+                    </h2>
+                    <div class="flex gap-3">
+                        <button 
+                            onclick="showGenerateFixturesModal()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-magic mr-2"></i>Generate Fixtures
+                        </button>
+                        <button 
+                            onclick="showScheduleModal()" 
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            <i class="fas fa-calendar-alt mr-2"></i>Schedule Matches
+                        </button>
+                        <button 
+                            onclick="deleteAllFixtures()" 
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                            <i class="fas fa-trash mr-2"></i>Delete All
+                        </button>
+                    </div>
+                </div>
+
+                <div id="fixtures-container" class="text-center py-8">
+                    <div class="loading mx-auto"></div>
+                    <p class="text-gray-500 mt-4">Loading fixtures...</p>
+                </div>
+
+                <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex items-start">
+                        <i class="fas fa-lightbulb text-blue-600 mt-1 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-blue-900">Smart Pairing Algorithm Active</p>
+                            <p class="text-xs text-blue-700 mt-1">Notice how players from the same club are strategically placed to avoid early confrontations. Our system ensures club-mates meet only in later rounds when possible.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="scheduler" class="section-content hidden pt-20 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Smart Match Scheduler</h2>
+                        <p class="text-sm text-gray-600 mt-1">Automated scheduling with rest period management</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <div class="flex items-center px-3 py-1 bg-green-100 rounded-full">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-xs font-medium text-green-800">Completed</span>
+                        </div>
+                        <div class="flex items-center px-3 py-1 bg-blue-100 rounded-full">
+                            <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                            <span class="text-xs font-medium text-blue-800">Live</span>
+                        </div>
+                        <div class="flex items-center px-3 py-1 bg-gray-100 rounded-full">
+                            <div class="w-3 h-3 bg-gray-500 rounded-full mr-2"></div>
+                            <span class="text-xs font-medium text-gray-800">Upcoming</span>
+                        </div>
+                        <div class="flex items-center px-3 py-1 bg-amber-100 rounded-full">
+                            <div class="w-3 h-3 bg-amber-500 rounded-full mr-2"></div>
+                            <span class="text-xs font-medium text-amber-800">Rest Buffer</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="scheduler-container" class="text-center py-8">
+                    <div class="loading mx-auto"></div>
+                    <p class="text-gray-500 mt-4">Loading schedule...</p>
+                </div>
+
+                <div class="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <div class="flex items-start">
+                        <i class="fas fa-clock text-amber-600 text-xl mt-1 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-amber-900">10-Minute Rest Buffer Active</p>
+                            <p class="text-xs text-amber-700 mt-1">The system automatically ensures players get minimum 10 minutes rest between consecutive matches. This prevents fatigue and ensures fair competition. Notice the hatched areas between matches on the same court.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="umpire" class="section-content hidden pt-20 pb-12">
+        <div class="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4">
+            <div id="umpire-login" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                <div class="text-center mb-8">
+                    <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-shield-alt text-blue-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Umpire Access</h2>
+                    <p class="text-sm text-gray-600 mt-2">Enter your 6-digit match code to begin</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Match Code</label>
+                        <input 
+                            type="text" 
+                            id="match-code"
+                            maxlength="6"
+                            placeholder="000000"
+                            class="w-full px-4 py-4 text-center text-2xl font-bold tracking-widest border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+                        />
+                        <p class="text-xs text-gray-500 mt-2 text-center">
+                            <i class="fas fa-info-circle mr-1"></i>Code provided by tournament admin
+                        </p>
+                        <p id="code-error" class="text-xs text-red-600 mt-2 text-center hidden"></p>
+                    </div>
+
+                    <button 
+                        onclick="validateMatchCode()"
+                        id="validate-btn"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                        <i class="fas fa-lock-open mr-2"></i>Validate & Start Match
+                    </button>
+
+                    <div class="pt-4 border-t border-gray-200">
+                        <div class="flex items-start text-xs text-gray-600">
+                            <i class="fas fa-shield-alt text-blue-600 mt-0.5 mr-2"></i>
+                            <p>This secure portal ensures only authorized umpires can update match scores. Each match has a unique code.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="live-scoring" class="hidden bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center">
+                            <i class="fas fa-th text-blue-600 mr-2"></i>
+                            <span class="text-sm font-semibold text-gray-700" id="match-court">Court -</span>
+                        </div>
+                        <span class="text-xs font-medium px-3 py-1 bg-blue-100 text-blue-800 rounded-full" id="match-round">-</span>
+                    </div>
+                    <p class="text-xs text-gray-500" id="match-id">Match ID: #-</p>
+                </div>
+
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6 border-2 border-blue-200">
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <p class="text-lg font-bold text-gray-900" id="player-a-name">-</p>
+                                <p class="text-xs" id="player-a-club">-</p>
+                            </div>
+                            <div class="text-4xl font-bold text-gray-900" id="score-a">0</div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="updateScore('a', -1)" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button onclick="updateScore('a', 1)" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t-2 border-gray-300 my-4"></div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <p class="text-lg font-bold text-gray-900" id="player-b-name">-</p>
+                                <p class="text-xs" id="player-b-club">-</p>
+                            </div>
+                            <div class="text-4xl font-bold text-gray-900" id="score-b">0</div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="updateScore('b', -1)" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button onclick="updateScore('b', 1)" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="submitFinalResult()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition duration-200 shadow-lg">
+                        <i class="fas fa-check-circle mr-2"></i>Submit Final Result
+                    </button>
+                    <button onclick="backToLogin()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-lg transition">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Login
+                    </button>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <span><i class="fas fa-clock mr-1"></i>Started: <span id="match-time">-</span></span>
+                        <span><i class="fas fa-user mr-1"></i>Umpire: UMP-042</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="generate-fixtures-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">
+                <i class="fas fa-magic text-blue-600 mr-2"></i>Generate Fixtures
+            </h3>
+            
+            <form id="generate-fixtures-form" onsubmit="generateFixtures(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="fixture-category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                            <option value="">Select Category</option>
+                            <option value="Men's Singles">Men's Singles</option>
+                            <option value="Women's Singles">Women's Singles</option>
+                            <option value="Men's Doubles">Men's Doubles</option>
+                            <option value="Women's Doubles">Women's Doubles</option>
+                            <option value="Mixed Doubles">Mixed Doubles</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Match Duration (minutes)</label>
+                        <input 
+                            type="number" 
+                            id="fixture-duration" 
+                            value="30" 
+                            min="15" 
+                            max="120" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required>
+                    </div>
+                </div>
+                
+                <div id="generate-message" class="hidden mt-4 p-3 rounded-lg"></div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button 
+                        type="button" 
+                        onclick="closeGenerateFixturesModal()" 
+                        class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        id="generate-fixtures-btn"
+                        class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-magic mr-2"></i>Generate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="schedule-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">
+                <i class="fas fa-calendar-alt text-green-600 mr-2"></i>Schedule All Matches
+            </h3>
+            
+            <form id="schedule-form" onsubmit="scheduleAllMatches(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                        <input 
+                            type="datetime-local" 
+                            id="schedule-start-time" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            required>
+                    </div>
+
+                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p class="text-xs text-blue-800">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            This will schedule ALL unscheduled matches from ALL categories, interleaving them across courts for optimal distribution.
+                        </p>
+                    </div>
+                </div>
+                
+                <div id="schedule-message" class="hidden mt-4 p-3 rounded-lg"></div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button 
+                        type="button" 
+                        onclick="closeScheduleModal()" 
+                        class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        id="schedule-btn"
+                        class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-calendar-check mr-2"></i>Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        let currentMatchData = null;
+        let currentPage = 1;
+        let totalPages = 1;
+
+        // auto-update match statuses
+        // ==========================
+        let statusUpdateInterval = null;
+
+        async function startAutoStatusUpdate() {
+            // update immediately
+            await updateMatchStatuses();
+            
+            statusUpdateInterval = setInterval(async () => {
+                await updateMatchStatuses();
+            }, 30000); 
+        }
+
+        function stopAutoStatusUpdate() {
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+                statusUpdateInterval = null;
+            }
+        }
+
+        async function updateMatchStatuses() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/update-match-statuses`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                // always refresh scheduler if visible (to update live match durations)
+                const schedulerSection = document.getElementById('scheduler');
+                if (schedulerSection && !schedulerSection.classList.contains('hidden')) {
+                    loadScheduler();
+                }
+                
+                if (data.success && data.matches_made_live > 0) {
+                    console.log(`${data.matches_made_live} match(es) went live:`, data.match_ids);
+                    
+                    // refresh fixtures if visible
+                    const fixturesSection = document.getElementById('fixtures');
+                    if (fixturesSection && !fixturesSection.classList.contains('hidden')) {
+                        loadFixtures();
+                    }
+                    
+                    updateNavigationState();
+                }
+            } catch (error) {
+                console.error('Error updating match statuses:', error);
+            }
+        }
+
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            startAutoStatusUpdate();
+        });
+
+        window.addEventListener('beforeunload', function() {
+            stopAutoStatusUpdate();
+        });
+
+        // navigate
+        // ==================
+        function showSection(sectionId) {
+            // if the nav button for this section is disabled, prevent navigation
+            const navBtn = document.querySelector(`[data-section="${sectionId}"]`);
+            if (navBtn && navBtn.dataset && navBtn.dataset.disabled === 'true') {
+                alert('Please register between 3 and 15 players before accessing other sections.');
+                return;
+            }
+
+            const sections = document.querySelectorAll('.section-content');
+            sections.forEach(section => section.classList.add('hidden'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.remove('hidden');
+
+            // update active nav button visually (based on data-section)
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blue-600', 'font-semibold');
+                btn.classList.add('text-gray-700');
+            });
+
+            const activeBtn = document.querySelector(`[data-section="${sectionId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-700');
+                activeBtn.classList.add('text-blue-600', 'font-semibold');
+            }
+
+            if (sectionId === 'admin') {
+                loadAdminDashboard();
+            } else if (sectionId === 'add-player') {
+                loadClubsForForm();
+            } else if (sectionId === 'fixtures') {
+                loadFixtures();
+            } else if (sectionId === 'scheduler') {
+                loadScheduler();
+            }
+        }
+
+        // admin dashboard
+        // =============================
+        async function loadAdminDashboard() {
+            try {
+                const statsResponse = await fetch(`${API_BASE_URL}/stats`);
+                const stats = await statsResponse.json();
+                
+                document.getElementById('stat-total-players').textContent = stats.total_players;
+                document.getElementById('stat-total-matches').textContent = stats.total_matches;
+                document.getElementById('stat-active-courts').textContent = stats.active_courts;
+
+                // load players with page buffering
+                await loadPlayersPage(1);
+            } catch (error) {
+                console.error('Error loading admin dashboard:', error);
+                document.getElementById('players-table-body').innerHTML = `
+                    <tr><td colspan="5" class="px-6 py-4 text-center text-red-600">Error loading data</td></tr>
+                `;
+            }
+        }
+
+        async function loadPlayersPage(page) {
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/players?page=${page}&per_page=10`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('players-table-body');
+                tbody.innerHTML = data.players.map(player => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${player.player_id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${player.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 text-xs font-medium rounded-full bg-${player.club_color}-100 text-${player.club_color}-800">${player.club_name}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${player.category}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800">${player.status}</span>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // update info page by page
+                totalPages = data.total_pages;
+                const startRange = (page - 1) * data.per_page + 1;
+                const endRange = Math.min(page * data.per_page, data.total);
+                
+                document.getElementById('player-range-start').textContent = startRange;
+                document.getElementById('player-range-end').textContent = endRange;
+                document.getElementById('player-total').textContent = data.total;
+                document.getElementById('current-page-num').textContent = page;
+                document.getElementById('total-pages-num').textContent = totalPages;
+                
+                document.getElementById('prev-page-btn').disabled = page <= 1;
+                document.getElementById('next-page-btn').disabled = page >= totalPages;
+                
+            } catch (error) {
+                console.error('Error loading players:', error);
+            }
+        }
+
+        // add player form
+        // ======================
+        async function loadClubsForForm() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/clubs`);
+                const clubs = await response.json();
+                
+                const select = document.getElementById('player-club');
+                select.innerHTML = '<option value="">Select Club</option>' + 
+                    clubs.map(club => `<option value="${club.club_id}">${club.club_name}</option>`).join('');
+            } catch (error) {
+                console.error('Error loading clubs:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('add-player-form');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('player-name').value;
+                    const clubId = document.getElementById('player-club').value;
+                    const category = document.getElementById('player-category').value;
+                    const messageEl = document.getElementById('form-message');
+                    const submitBtn = document.getElementById('submit-player-btn');
+                    
+                    if (!name || !clubId || !category) {
+                        messageEl.className = 'p-4 rounded-lg bg-red-100 text-red-800';
+                        messageEl.textContent = 'Please fill in all required fields';
+                        messageEl.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="loading"></span> Adding...';
+                    
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/players`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: name,
+                                club_id: parseInt(clubId),
+                                category: category,
+                                status: 'Active'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            messageEl.className = 'p-4 rounded-lg bg-green-100 text-green-800';
+                            messageEl.textContent = `Player added successfully! Player ID: ${data.player_id}`;
+                            
+                            // show remaining slots if provided
+                            if (data.remaining_slots !== undefined) {
+                                messageEl.textContent += ` | ${data.remaining_slots} slots remaining in ${data.category}`;
+                            }
+                            
+                            messageEl.classList.remove('hidden');
+                            form.reset();
+                            await updateNavigationState();
+
+                        } else {
+                            messageEl.className = 'p-4 rounded-lg bg-red-100 text-red-800';
+                            messageEl.textContent = 'Error: ' + data.error;
+                            messageEl.classList.remove('hidden');
+                        }
+                    } catch (error) {
+                        messageEl.className = 'p-4 rounded-lg bg-red-100 text-red-800';
+                        messageEl.textContent = 'Connection error. Please try again.';
+                        messageEl.classList.remove('hidden');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>Add Player';
+                    }
+                });
+            }
+        });
+
+        // fixtures (til they're not called matchmaking)
+        // ========================
+        async function loadFixtures() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/fixtures`);
+                const fixtures = await response.json();
+                
+                if (!fixtures || fixtures.length === 0) {
+                    document.getElementById('fixtures-container').innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-gray-500">No fixtures generated yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // group fixtures by category
+                const categories = {};
+                fixtures.forEach(match => {
+                    const category = match.category || 'Unknown';
+                    if (!categories[category]) {
+                        categories[category] = [];
+                    }
+                    categories[category].push(match);
+                });
+                
+                const container = document.getElementById('fixtures-container');
+                
+                // create tabs for each category
+                container.innerHTML = `
+                    <div class="mb-6">
+                        <div class="flex space-x-2 border-b">
+                            ${Object.keys(categories).map((cat, idx) => `
+                                <button 
+                                    class="category-tab px-6 py-3 font-semibold transition rounded-t-lg ${idx === 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+                                    data-category="${cat}">
+                                    ${cat}
+                                    <span class="ml-2 text-sm opacity-75">(${categories[cat].length})</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ${Object.entries(categories).map(([category, matches], idx) => `
+                        <div id="category-${category.replace(/[^a-zA-Z0-9]/g, '-')}" 
+                            class="category-content ${idx === 0 ? '' : 'hidden'}">
+                            ${renderBracket(matches)}
+                        </div>
+                    `).join('')}
+                `;
+                
+                // add click event listeners to tabs after rendering
+                document.querySelectorAll('.category-tab').forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        const category = this.getAttribute('data-category');
+                        showCategory(category);
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Error loading fixtures:', error);
+                document.getElementById('fixtures-container').innerHTML = `
+                    <p class="text-red-600">Error loading fixtures: ${error.message}</p>
+                `;
+            }
+        }
+
+        function showCategory(category) {
+            document.querySelectorAll('.category-content').forEach(el => {
+                el.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('bg-blue-600', 'text-white');
+                tab.classList.add('bg-gray-100', 'text-gray-600');
+            });
+            
+            // show selected category
+            const categoryId = category.replace(/[^a-zA-Z0-9]/g, '-');
+            const categoryElement = document.getElementById(`category-${categoryId}`);
+            if (categoryElement) {
+                categoryElement.classList.remove('hidden');
+            }
+            
+            // highlight active tab
+            const activeTab = document.querySelector(`[data-category="${category}"]`);
+            if (activeTab) {
+                activeTab.classList.remove('bg-gray-100', 'text-gray-600');
+                activeTab.classList.add('bg-blue-600', 'text-white');
+            }
+        }
+
+        function renderBracket(fixtures) {
+            const roundOrder = ['Round of 16', 'Quarter Finals', 'Semi Finals', 'Finals'];
+            
+            const rounds = {};
+            fixtures.forEach(match => {
+                if (!rounds[match.round]) {
+                    rounds[match.round] = [];
+                }
+                rounds[match.round].push(match);
+            });
+
+            const sortedRounds = Object.entries(rounds).sort((a, b) => {
+                const indexA = roundOrder.indexOf(a[0]);
+                const indexB = roundOrder.indexOf(b[0]);
+                return (indexA === -1 ? -1 : indexA) - (indexB === -1 ? -1 : indexB);
+            });
+
+            return `
+                <div class="overflow-x-auto">
+                    <div class="inline-flex space-x-12 min-w-max pb-8">
+                        ${sortedRounds.map(([round, matches], roundIndex) => {
+                            const spacingClasses = {
+                                'Round of 16': 'space-y-8',
+                                'Quarter Finals': 'space-y-16 mt-8',
+                                'Semi Finals': 'space-y-32 mt-16',
+                                'Finals': 'mt-32'
+                            };
+                            
+                            const spacing = spacingClasses[round] || 'space-y-8';
+                            
+                            return `
+                                <div class="space-y-4">
+                                    <h3 class="text-sm font-semibold text-gray-600 mb-4 text-center">${round}</h3>
+                                    <div class="${spacing}">
+                                        ${matches.map(match => renderMatch(match, round)).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMatch(match, round) {
+            if (round === 'Finals') {
+                return `
+                    <div class="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-400 rounded-lg p-4 w-48 hover:border-yellow-600 transition">
+                        <div class="text-center">
+                            <i class="fas fa-trophy text-yellow-600 text-2xl mb-2"></i>
+                            <p class="text-xs text-gray-600 font-semibold">CHAMPIONSHIP</p>
+                            <p class="text-xs text-gray-500 mt-1">TBD</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (match.is_bye) {
+                return `
+                    <div class="flex flex-col space-y-1">
+                        <div class="bg-white border-2 border-blue-400 rounded-lg p-3 w-48 hover:border-blue-600 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-semibold text-sm">${match.player_a_name}</p>
+                                    <p class="text-xs text-${match.player_a_color}-600">${match.player_a_club}</p>
+                                </div>
+                                <span class="text-sm font-bold text-blue-600">AUTO</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-100 border-2 border-dashed border-gray-400 rounded-lg p-3 w-48 hover:border-gray-600 transition">
+                            <div class="flex items-center justify-center">
+                                <p class="text-sm font-semibold text-gray-500">
+                                    <i class="fas fa-ban mr-2"></i>BYE
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // determine status-based styling
+            const statusClass = match.status === 'Live' ? 'border-blue-400' : 
+                                match.status === 'Completed' ? 'border-green-400' : 'border-gray-300';
+            
+            const hoverClass = match.status === 'Live' ? 'hover:border-blue-600' : 
+                               match.status === 'Completed' ? 'hover:border-green-600' : 'hover:border-gray-500';
+            
+            // determine winner styling for completed matches
+            const isPlayerAWinner = match.status === 'Completed' && match.winner_id === match.player_a_id;
+            const isPlayerBWinner = match.status === 'Completed' && match.winner_id === match.player_b_id;
+            
+            const playerABg = isPlayerAWinner ? 'bg-green-50' : 'bg-white';
+            const playerBBg = isPlayerBWinner ? 'bg-green-50' : 'bg-white';
+            
+            return `
+                <div class="flex flex-col space-y-1">
+                    <div class="${playerABg} border-2 ${statusClass} ${hoverClass} rounded-lg p-3 w-48 transition">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold text-sm">${match.player_a_name}</p>
+                                <p class="text-xs text-${match.player_a_color}-600">${match.player_a_club}</p>
+                            </div>
+                            ${match.status === 'Completed' ? `<span class="text-lg font-bold ${isPlayerAWinner ? 'text-green-600' : 'text-gray-400'}">${match.score_a}</span>` : 
+                            match.status === 'Live' ? `<span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">LIVE</span>` :
+                            `<span class="text-sm text-gray-400">TBD</span>`}
+                        </div>
+                    </div>
+                    <div class="${playerBBg} border-2 ${statusClass} ${hoverClass} rounded-lg p-3 w-48 transition">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold text-sm">${match.player_b_name}</p>
+                                <p class="text-xs text-${match.player_b_color}-600">${match.player_b_club}</p>
+                            </div>
+                            ${match.status === 'Completed' ? `<span class="text-lg font-bold ${isPlayerBWinner ? 'text-green-600' : 'text-gray-400'}">${match.score_b}</span>` : 
+                            match.status === 'Live' ? `<span class="text-sm text-gray-500">vs</span>` :
+                            `<span class="text-sm text-gray-400">TBD</span>`}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        // show fixture model
+        // ===================================
+
+        function showGenerateFixturesModal() {
+            document.getElementById('generate-fixtures-modal').classList.remove('hidden');
+            /*
+            // set default start time to tomorrow at 9 am
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('fixture-start-time').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            */
+            }
+
+        function closeGenerateFixturesModal() {
+            document.getElementById('generate-fixtures-modal').classList.add('hidden');
+            document.getElementById('generate-fixtures-form').reset();
+            document.getElementById('generate-message').classList.add('hidden');
+        }
+
+        async function generateFixtures(event) {
+            event.preventDefault();
+            
+            const category = document.getElementById('fixture-category').value;
+            const duration = document.getElementById('fixture-duration').value;
+            const messageEl = document.getElementById('generate-message');
+            const btn = document.getElementById('generate-fixtures-btn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Generating...';
+            
+            try {
+                const defaultDate = new Date();
+                defaultDate.setDate(defaultDate.getDate() + 1);
+                defaultDate.setHours(9, 0, 0, 0);
+                const formattedTime = defaultDate.getFullYear() + '-' + 
+                    String(defaultDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(defaultDate.getDate()).padStart(2, '0') + ' ' +
+                    String(defaultDate.getHours()).padStart(2, '0') + ':' +
+                    String(defaultDate.getMinutes()).padStart(2, '0') + ':00';
+                
+                const response = await fetch(`${API_BASE_URL}/generate-fixtures`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        category: category,
+                        start_time: formattedTime,
+                        match_duration: parseInt(duration)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageEl.className = 'p-3 rounded-lg bg-green-100 text-green-800';
+                    messageEl.textContent = `${data.message}`;
+                    messageEl.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        closeGenerateFixturesModal();
+                        loadFixtures(); 
+                    }, 1500);
+                } else {
+                    messageEl.className = 'p-3 rounded-lg bg-red-100 text-red-800';
+                    messageEl.textContent = 'Error: ' + data.error;
+                    messageEl.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error generating fixtures:', error);
+                messageEl.className = 'p-3 rounded-lg bg-red-100 text-red-800';
+                messageEl.textContent = 'Connection error. Please try again.';
+                messageEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magic mr-2"></i>Generate';
+            }
+        }
+
+        async function deleteAllFixtures() {
+            if (!confirm('Are you sure you want to delete ALL fixtures? This cannot be undone!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/fixtures`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('All fixtures deleted successfully!');
+                    loadFixtures(); 
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error deleting fixtures:', error);
+                alert('Connection error. Please try again.');
+            }
+        }
+
+
+        // scheduler
+        // ========================
+        async function loadScheduler() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/schedule`);
+                const data = await response.json();
+                
+                const schedule = Array.isArray(data) ? data : (data.matches || []);
+                const restBuffer = data.rest_buffer || 10;
+                
+                // browser time
+                const now = new Date();
+                const currentTotalMinutes = (now.getHours() * 60) + now.getMinutes() + (now.getSeconds() / 60);
+                const startOfDayMinutes = 6 * 60; // 06:00 am
+
+                if (!schedule || schedule.length === 0) {
+                    document.getElementById('scheduler-container').innerHTML = '<div class="text-center py-8 text-gray-500">No scheduled matches</div>';
+                    return;
+                }
+                
+                // group by date
+                const matchesByDate = {};
+                schedule.forEach(match => {
+                    const dateStr = match.scheduled_time.replace(' ', 'T'); 
+                    const matchDate = new Date(dateStr);
+                    const dateKey = matchDate.toISOString().split('T')[0];
+                    if (!matchesByDate[dateKey]) matchesByDate[dateKey] = [];
+                    matchesByDate[dateKey].push(match);
+                });
+                
+                const sortedDates = Object.keys(matchesByDate).sort();
+                const activeCourts = [...new Set(schedule.map(m => m.court_id))].sort();
+                const container = document.getElementById('scheduler-container');
+                
+                let html = `
+                    <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-blue-600 mr-2"></i>
+                            <span class="text-sm font-semibold text-blue-900">Current Time: ${now.toLocaleTimeString()}</span>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs">
+                            <div class="flex items-center"><div class="w-3 h-3 bg-blue-500 rounded mr-1 animate-pulse"></div>Live</div>
+                            <div class="flex items-center"><div class="w-3 h-3 bg-green-500 rounded mr-1"></div>Done</div>
+                            <div class="flex items-center"><div class="w-3 h-3 bg-emerald-400 border border-emerald-600 rounded mr-1"></div>Active Break</div>
+                        </div>
+                    </div>
+                `;
+                
+                sortedDates.forEach((dateKey) => {
+                    const dayMatches = matchesByDate[dateKey];
+                    const dateObj = new Date(dateKey + 'T00:00:00');
+                    const dateFormatted = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                    
+                    const isToday = dateKey === now.toISOString().split('T')[0];
+                    let currentTimeLine = '';
+                    
+                    // red bar logic
+                    if (isToday) {
+                        const minutesSinceStart = currentTotalMinutes - startOfDayMinutes;
+                        if (minutesSinceStart >= 0 && minutesSinceStart <= 960) {
+                            // formula: (minutes * 6.4px) + 128px sidebar
+                            const leftPos = (minutesSinceStart * 6.4) + 120;
+                            currentTimeLine = `
+                                <div class="absolute top-0 bottom-0 w-[2px] bg-red-600 z-50 pointer-events-none shadow-[0_0_8px_rgba(220,38,38,0.8)]" 
+                                    style="left: ${leftPos}px;">
+                                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-bold px-1.5 rounded">NOW</div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    const numSlots = (22 - 6) * 4; 
+                    const timeSlots = [];
+                    const dayStart = new Date(dateKey + 'T06:00:00');
+                    for (let i = 0; i < numSlots; i++) {
+                        const time = new Date(dayStart.getTime() + i * 15 * 60000);
+                        timeSlots.push({ label: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) });
+                    }
+                    
+                    const courtMatches = {};
+                    dayMatches.forEach(match => {
+                        if (!courtMatches[match.court_id]) courtMatches[match.court_id] = [];
+                        courtMatches[match.court_id].push(match);
+                    });
+                    
+                    // IMPORTANT: fixed width logic to prevent flexing issues
+                    const totalWidth = (numSlots * 96) + 128;
+
+                    html += `
+                        <div class="mb-8 border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                            <div class="bg-gradient-to-r from-gray-800 to-gray-700 text-white px-4 py-3 flex justify-between items-center">
+                                <h3 class="font-bold text-lg">${dateFormatted}</h3>
+                                <span class="text-sm bg-gray-600 px-2 py-1 rounded">${dayMatches.length} Matches</span>
+                            </div>
+                            
+                            <div id="timeline-${dateKey}" class="overflow-x-auto bg-white relative custom-scrollbar">
+                                <div class="inline-block relative" style="width: ${totalWidth}px; min-width: 100%;">
+                                    ${currentTimeLine}
+                                    
+                                    <div class="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                                        <div class="w-32 flex-shrink-0 p-3 font-semibold text-sm text-gray-700 bg-gray-50 border-r sticky left-0 z-20">Courts</div>
+                                        <div class="flex">
+                                            ${timeSlots.map(slot => `<div class="w-24 flex-shrink-0 p-3 text-xs text-gray-500 text-center border-r border-gray-100">${slot.label}</div>`).join('')}
+                                        </div>
+                                    </div>
+
+                                    ${activeCourts.map(courtId => {
+                                        const matches = courtMatches[courtId] || [];
+                                        const sortedMatches = matches.sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+                                        
+                                        // --- CASCADE ENGINE ---
+                                        let courtTimeline = [];
+                                        let layoutCursor = null; 
+                                        
+                                        sortedMatches.forEach((match, idx) => {
+                                            const scheduledTime = new Date(match.scheduled_time.replace(' ', 'T'));
+                                            
+                                            // 1. calculate dynamic duration
+                                            let duration = match.duration_minutes;
+                                            if (match.status === 'Live') {
+                                                const liveDuration = (now - scheduledTime) / 60000;
+                                                duration = Math.max(duration, liveDuration);
+                                            } else if (match.status === 'Completed') {
+                                                duration = match.actual_duration || match.duration_minutes;
+                                            }
+
+                                            // 2. determine start time (the push)
+                                            let actualStartTime = scheduledTime;
+                                            let isDelayed = false;
+                                            let delayMinutes = 0;
+
+                                            // if previous match pushes into this one, bump it
+                                            if (layoutCursor && layoutCursor > actualStartTime) {
+                                                actualStartTime = layoutCursor;
+                                                isDelayed = true;
+                                                delayMinutes = Math.ceil((layoutCursor - scheduledTime) / 60000);
+                                            }
+                                            
+                                            const actualEndTime = new Date(actualStartTime.getTime() + duration * 60000);
+                                            const bufferEndTime = new Date(actualEndTime.getTime() + restBuffer * 60000);
+                                            
+                                            layoutCursor = bufferEndTime;
+                                            
+                                            courtTimeline.push({ match, actualStartTime, actualEndTime, bufferEndTime, duration, isDelayed, delayMinutes });
+                                        });
+
+                                        return `
+                                            <div class="flex border-b border-gray-100 h-24">
+                                                <div class="w-32 flex-shrink-0 flex items-center justify-center font-bold text-gray-600 bg-white border-r sticky left-0 z-10 shadow-sm">
+                                                    Court ${courtId}
+                                                </div>
+                                                <div class="relative bg-white h-full w-full">
+                                                    ${courtTimeline.map(item => {
+                                                        const { match, actualStartTime, actualEndTime, bufferEndTime, duration, isDelayed, delayMinutes } = item;
+                                                        
+                                                        const matchStartMins = (actualStartTime.getHours() * 60 + actualStartTime.getMinutes()) - startOfDayMinutes;
+                                                        const leftPos = (matchStartMins * 6.4) + 32; // relative to content area
+                                                        const width = duration * 6.4;
+                                                        
+                                                        const bufferOffsetMins = (actualEndTime.getHours() * 60 + actualEndTime.getMinutes()) - startOfDayMinutes;
+                                                        const bufferLeft = (bufferOffsetMins * 6.4) + 32;
+                                                        const bufferWidth = restBuffer * 6.4;
+                                                        
+                                                        // fix c: active break logic (strict)
+                                                        const isBreakTime = isToday && currentTotalMinutes >= (bufferOffsetMins + startOfDayMinutes) && currentTotalMinutes < (bufferOffsetMins + startOfDayMinutes + restBuffer);
+                                                        const isBufferActive = match.status === 'Completed' && isBreakTime;
+                                                        const bufferClass = isBufferActive ? 'rest-buffer-active' : 'rest-buffer';
+                                                        
+                                                        const isTBD = match.player_a_name === 'TBD' || match.player_b_name === 'TBD';
+                                                        let statusColor = 'bg-indigo-500';
+                                                        let statusLabel = '';
+                                                        
+                                                        if (match.status === 'Completed') {
+                                                            statusColor = 'bg-green-500';
+                                                        } else if (match.status === 'Live') {
+                                                            statusColor = 'bg-blue-500 animate-pulse shadow-lg shadow-blue-200';
+                                                            const liveMins = Math.floor(duration);
+                                                            statusLabel = `<div class="text-[9px] font-bold mb-0.5 text-white bg-blue-700 bg-opacity-50 px-1 rounded inline-block">LIVE ${liveMins}m</div>`;
+                                                        } else if (isDelayed) {
+                                                            statusColor = 'bg-red-500';
+                                                            statusLabel = `<div class="text-[9px] font-bold mb-0.5 text-white bg-red-700 bg-opacity-50 px-1 rounded inline-block">+${delayMinutes}m</div>`;
+                                                        } else if (isTBD) {
+                                                            statusColor = 'bg-gray-100 border-2 border-dashed border-gray-400';
+                                                        }
+
+                                                        const textColor = isTBD ? 'text-gray-500' : 'text-white';
+
+                                                        return `
+                                                            <div class="absolute top-2 bottom-2 rounded px-2 py-1.5 text-xs ${statusColor} ${textColor} overflow-hidden cursor-pointer hover:opacity-90 hover:shadow-md transition-all duration-500 z-10"
+                                                                style="left: ${leftPos}px; width: ${width}px;"
+                                                                title="${match.player_a_name} vs ${match.player_b_name}">
+                                                                ${statusLabel}
+                                                                <div class="flex justify-between items-start">
+                                                                    <span class="font-mono opacity-75 text-[9px]">${match.match_id}</span>
+                                                                    <span class="text-[9px] opacity-75">${match.round.substring(0,3)}</span>
+                                                                </div>
+                                                                <div class="font-bold truncate mt-0.5 text-[10px] leading-tight">${match.player_a_name}</div>
+                                                                <div class="font-bold truncate text-[10px] leading-tight">vs ${match.player_b_name}</div>
+                                                            </div>
+
+                                                            <div class="absolute ${bufferClass} top-2 bottom-2 rounded z-0 transition-all duration-500" 
+                                                                style="left: ${bufferLeft}px; width: ${bufferWidth}px;"
+                                                                title="Rest Period">
+                                                            </div>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+
+                setTimeout(() => {
+                    sortedDates.forEach(dateKey => {
+                        scrollToSmartPosition(dateKey, matchesByDate[dateKey]);
+                    });
+                }, 100);
+
+            } catch (error) {
+                console.error('Error loading scheduler:', error);
+            }
+        }
+
+
+        function scrollToSmartPosition(dateKey, matches) {
+            const container = document.getElementById(`timeline-${dateKey}`);
+            if (!container) return;
+
+            const now = new Date();
+            const todayKey = now.toISOString().split('T')[0];
+            const isToday = dateKey === todayKey;
+            
+            let targetDate = null;
+
+            if (isToday) {
+                targetDate = now;
+                const hours = now.getHours();
+                // clamp view to operating hours if currently outside them
+                if (hours < 6) targetDate = new Date(dateKey + 'T06:00:00');
+                if (hours > 22) targetDate = new Date(dateKey + 'T22:00:00');
+            } else {
+                if (matches && matches.length > 0) {
+                    const sorted = matches.sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+                    targetDate = new Date(sorted[0].scheduled_time);
+                }
+            }
+
+            if (targetDate) {
+                const dayStart = new Date(dateKey + 'T06:00:00');
+                let diffMinutes = (targetDate - dayStart) / 60000;
+                if (diffMinutes < 0) diffMinutes = 0;
+
+                // calculate pixel position of the target time
+                // (minutes * 6.4px) + 128px sidebar offset
+                const targetPixel = (diffMinutes * 6.4) + 128;
+                
+                // get container width to find centre
+                const containerWidth = container.offsetWidth;
+                
+                // scroll position = target - (half screen width)
+                // result: the target pixel is exactly in the middle
+                const centeredPos = targetPixel - (containerWidth / 2);
+
+                container.scrollTo({
+                    left: Math.max(0, centeredPos),
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+
+        // schedule modal functions
+        // ========================
+        function showScheduleModal() {
+            document.getElementById('schedule-modal').classList.remove('hidden');
+            
+            // set default start time to tomorrow at 9 am
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('schedule-start-time').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('schedule-modal').classList.add('hidden');
+            document.getElementById('schedule-form').reset();
+            document.getElementById('schedule-message').classList.add('hidden');
+        }
+
+        async function scheduleAllMatches(event) {
+            if (event) event.preventDefault();
+            
+            const startTimeInput = document.getElementById('schedule-start-time');
+            const messageEl = document.getElementById('schedule-message');
+            const btn = document.getElementById('schedule-btn');
+            
+            if (!startTimeInput.value) {
+                alert("Please select a start time.");
+                return;
+            }
+
+            // formatting: "2025-11-23T12:00" -> "2025-11-23 12:00:00"
+            const formattedTime = startTimeInput.value.replace('T', ' ') + ':00';
+            
+            // reset ui
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Connecting...';
+            messageEl.classList.add('hidden');
+
+            // debug: print exactly what we are sending
+            console.log(`Attempting to POST to: ${API_BASE_URL}/schedule-matches`);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/schedule-matches`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        start_time: formattedTime,
+                        rest_buffer: 10
+                    })
+                });
+
+                // if we get here, the network connection worked. now check if server was happy.
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server replied ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageEl.className = 'p-3 rounded-lg bg-green-100 text-green-800';
+                    messageEl.innerHTML = `
+                        <div class="font-bold">✓ Success</div>
+                        <div class="text-xs">${data.message}</div>
+                    `;
+                    messageEl.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        closeScheduleModal();
+                        // reload active tabs
+                        if (!document.getElementById('fixtures').classList.contains('hidden')) loadFixtures();
+                        if (!document.getElementById('scheduler').classList.contains('hidden')) loadScheduler();
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Unknown logic error');
+                }
+
+            } catch (error) {
+                console.error("Scheduling Failed:", error);
+                
+                messageEl.className = 'p-3 rounded-lg bg-red-100 text-red-800 border border-red-200';
+                
+                // custom error message for "failed to fetch" (the connection error)
+                if (error.message.includes("Failed to fetch")) {
+                    messageEl.innerHTML = `
+                        <div class="font-bold">Connection Refused</div>
+                        <div class="text-xs mt-1">
+                            The browser blocked the request to <b>${API_BASE_URL}</b>.
+                            <br>1. Ensure 'python app.py' is running.
+                            <br>2. Ensure your Python code has <code>CORS(app)</code>.
+                        </div>
+                    `;
+                } else {
+                    messageEl.textContent = 'Error: ' + error.message;
+                }
+                messageEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-calendar-check mr-2"></i>Schedule';
+            }
+        }
+
+
+        // umpire auth
+        // ===========================
+        async function validateMatchCode() {
+            const code = document.getElementById('match-code').value;
+            const errorEl = document.getElementById('code-error');
+            const btn = document.getElementById('validate-btn');
+            
+            if (code.length !== 6) {
+                errorEl.textContent = 'Please enter a valid 6-digit code';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            btn.innerHTML = '<span class="loading"></span>';
+            btn.disabled = true;
+            errorEl.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/validate-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ match_code: code })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentMatchData = data.match;
+                    showLiveScoring(data.match);
+                } else {
+                    errorEl.className = 'text-sm text-red-600 mt-2 text-center p-3 bg-red-50 rounded-lg border border-red-200';
+                    errorEl.innerHTML = `
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        ${data.error}
+                    `;
+                    errorEl.classList.remove('hidden');
+                    btn.innerHTML = '<i class="fas fa-lock-open mr-2"></i>Validate & Start Match';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error validating code:', error);
+                errorEl.className = 'text-sm text-red-600 mt-2 text-center';
+                errorEl.textContent = 'Connection error. Please try again.';
+                errorEl.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-lock-open mr-2"></i>Validate & Start Match';
+                btn.disabled = false;
+            }
+        }
+
+
+        function showLiveScoring(match) {
+            document.getElementById('umpire-login').classList.add('hidden');
+            document.getElementById('live-scoring').classList.remove('hidden');
+            
+            // add match details
+            document.getElementById('match-court').textContent = match.court_name;
+            document.getElementById('match-round').textContent = match.round;
+            document.getElementById('match-id').textContent = `Match ID: #${match.match_id}`;
+            document.getElementById('player-a-name').textContent = match.player_a_name;
+            document.getElementById('player-a-club').textContent = match.player_a_club;
+            document.getElementById('player-b-name').textContent = match.player_b_name;
+            document.getElementById('player-b-club').textContent = match.player_b_club;
+            document.getElementById('score-a').textContent = match.score_a;
+            document.getElementById('score-b').textContent = match.score_b;
+            document.getElementById('match-time').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function backToLogin() {
+            document.getElementById('live-scoring').classList.add('hidden');
+            document.getElementById('umpire-login').classList.remove('hidden');
+            document.getElementById('match-code').value = '';
+            document.getElementById('code-error').classList.add('hidden');
+            document.getElementById('validate-btn').innerHTML = '<i class="fas fa-lock-open mr-2"></i>Validate & Start Match';
+            document.getElementById('validate-btn').disabled = false;
+            currentMatchData = null;
+        }
+
+        // live scoring
+        // =============================
+        async function updateScore(player, delta) {
+            const scoreAEl = document.getElementById('score-a');
+            const scoreBEl = document.getElementById('score-b');
+            
+            let scoreA = parseInt(scoreAEl.textContent);
+            let scoreB = parseInt(scoreBEl.textContent);
+            
+            if (player === 'a') {
+                scoreA = Math.max(0, scoreA + delta);
+                scoreAEl.textContent = scoreA;
+            } else {
+                scoreB = Math.max(0, scoreB + delta);
+                scoreBEl.textContent = scoreB;
+            }
+
+            // update backend
+            try {
+                await fetch(`${API_BASE_URL}/update-score`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        match_code: currentMatchData.match_code,
+                        score_a: scoreA,
+                        score_b: scoreB
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating score:', error);
+            }
+        }
+
+        async function submitFinalResult() {
+            const scoreA = parseInt(document.getElementById('score-a').textContent);
+            const scoreB = parseInt(document.getElementById('score-b').textContent);
+            
+            if (scoreA === 0 && scoreB === 0) {
+                alert('Please update the scores before submitting');
+                return;
+            }
+
+            const winnerId = scoreA > scoreB ? currentMatchData.player_a_id : currentMatchData.player_b_id;
+
+            if (!confirm('Are you sure you want to submit the final result? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/submit-result`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        match_code: currentMatchData.match_code,
+                        score_a: scoreA,
+                        score_b: scoreB,
+                        winner_id: winnerId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Result submitted successfully!');
+                    backToLogin();
+                } else {
+                    alert('Error submitting result: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error submitting result:', error);
+                alert('Connection error. Please try again.');
+            }
+        }
+
+        // format match code
+        // ===========================
+        document.addEventListener('DOMContentLoaded', function() {
+            const matchCodeInput = document.getElementById('match-code');
+            if (matchCodeInput) {
+                matchCodeInput.addEventListener('input', function(e) {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                });
+                
+                matchCodeInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        validateMatchCode();
+                    }
+                });
+            }
+
+            // load initial data
+            // set navigation state and ensure user sees the add-player screen first
+            updateNavigationState().then(() => showSection('add-player'));
+        });
+
+        // enable/disable nav buttons based on current player count
+        async function updateNavigationState() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/stats`);
+                const stats = await res.json();
+                const count = parseInt(stats.total_players || 0, 10);
+
+                // allowed when players > 2 and < 16 (i.e., 3..15)
+                const allowed = count > 2;
+
+                // list of nav button ids except add-player (always enabled)
+                const navIds = ['nav-admin', 'nav-fixtures', 'nav-scheduler', 'nav-umpire'];
+
+                navIds.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (!btn) return;
+
+                    if (allowed) {
+                        btn.removeAttribute('disabled');
+                        btn.classList.remove('opacity-50', 'pointer-events-none');
+                        btn.dataset.disabled = 'false';
+                    } else {
+                        btn.setAttribute('disabled', 'true');
+                        btn.classList.add('opacity-50', 'pointer-events-none');
+                        btn.dataset.disabled = 'true';
+                    }
+                });
+
+                // update admin stat boxes if present
+                if (document.getElementById('stat-total-players')) {
+                    document.getElementById('stat-total-players').textContent = stats.total_players;
+                    document.getElementById('stat-total-matches').textContent = stats.total_matches;
+                    document.getElementById('stat-active-courts').textContent = stats.active_courts;
+                }
+
+                return allowed;
+            } catch (err) {
+                console.error('Error checking player count', err);
+                return false;
+            }
+        }
+    </script>
+</body>
+</html>
