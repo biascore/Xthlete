@@ -1,11 +1,11 @@
 # Overview
 
-XTHLETE is a complete match-management system designed for sports tournaments.
-It generates fair fixtures, schedules matches across multiple courts, prevents player conflicts, ensures rest periods, and provides secure match-code–based result entry.
+XTHLETE is a match management system for sports tournaments.
+It generates fair fixtures, schedules matches across multiple courts, prevents player conflicts, ensures rest periods, and provides match codes for result entry, for security reasons.
 
 This project's architecture is completely API driven. Everything is fetched from, and configurable via a database.
 
-This is a submission for SPRINTX Hackathon's XTHLETE problem statement – Smart Fixture, Scheduling & Match Management System.
+This is a submission for SPRINTX Hackathon's XTHLETE problem statement – Smart Fixture, Scheduling and Match Management System.
 
 # Demo Video
 
