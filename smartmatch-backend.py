@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import random
 import math
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -1913,7 +1914,8 @@ if __name__ == '__main__':
     print("  • GET  /api/match/<code>    - Get match details")
     print("  • GET  /api/clubs           - Get all clubs")
     print("  • GET  /api/courts          - Get all courts")
-    print("\n Server running on: http://127.0.0.1:8080")
+    print("\n Server running on: http://0.0.0.0:8080")
     print("="*50 + "\n")
     
-    app.run(debug=True, port=8080)
+
+    app.run(port=int(os.environ.get("PORT", 8080)),host='0.0.0.0',debug=True)
