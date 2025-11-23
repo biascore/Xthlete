@@ -11,6 +11,11 @@ This is a submission for SPRINTX Hackathon's XTHLETE problem statement – Smart
 
 https://files.catbox.moe/mst6t9.mp4
 
+
+https://github.com/user-attachments/assets/0dd23662-db50-439f-8f9b-0c55145f41b8
+
+
+
 # Live Demo URL
 https://xthlete-280949975136.asia-south1.run.app/
 
@@ -83,6 +88,9 @@ Dynamically updates the brackets as matches are won, with scores and next round 
 - `DELETE /api/fixtures` - Reset all fixtures
 - `DELETE /api/fixtures/<category>` - Delete fixtures of only that category
 - `POST /api/schedule-matches` - Schedule every match, even in the future based on fixtures
+
+
+
 
 # Installation instructions 
 
