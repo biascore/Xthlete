@@ -1913,7 +1913,7 @@ if __name__ == '__main__':
     print("  • GET  /api/match/<code>    - Get match details")
     print("  • GET  /api/clubs           - Get all clubs")
     print("  • GET  /api/courts          - Get all courts")
-    print("\n Server running on: http://127.0.0.1:5000")
+    print("\n Server running on: http://127.0.0.1:8080")
     print("="*50 + "\n")
     
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8080)
